@@ -1,5 +1,6 @@
 from django.db.models.signals import post_save, post_delete
 from .models import Video
+from .tasks import convert_480p_video
 from django.dispatch import receiver
 import os
 
@@ -9,6 +10,7 @@ def video_post_save(sender, instance, created, **kwargs):
     print('video wurde gespeichert')
     if created:
         print('new video wurde gespeichert')
+        convert_480p_video.delay(instance.video_file.path)
 
 
 @receiver(post_delete, sender=Video)
