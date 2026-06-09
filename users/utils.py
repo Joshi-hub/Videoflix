@@ -10,7 +10,20 @@ def send_activation_email(user, token):
     activation_link = f'{frontend_url}/activate/{uid}/{token}/'
     send_mail(
         subject='Activate your Videoflix account',
-        message=f'Welcome to Videoflix!\n\nPlease activate your account:\n\n{activation_link}',
+        message=f'Please activate your account: {activation_link}',
+        from_email=os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@videoflix.com'),
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def send_password_reset_email(user, token):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
+    reset_link = f'{frontend_url}/password-reset-confirm/{uid}/{token}/'
+    send_mail(
+        subject='Reset your Videoflix password',
+        message=f'Reset your password: {reset_link}',
         from_email=os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@videoflix.com'),
         recipient_list=[user.email],
         fail_silently=False,
