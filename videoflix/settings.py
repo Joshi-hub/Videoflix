@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
@@ -22,6 +23,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_rq',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'core',
     'users',
@@ -126,8 +128,14 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'users.api.authentication.JWTCookieAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
