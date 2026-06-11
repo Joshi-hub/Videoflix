@@ -1,9 +1,12 @@
+from django.conf import settings
+from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -43,7 +46,42 @@ class ActivateView(APIView):
 
 class LoginView(APIView):
     def post(self, request):
-        pass
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': 'Ungültige Eingabe.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(
+            request,
+            username=serializer.validated_data['email'],
+            password=serializer.validated_data['password'],
+        )
+        if user is None:
+            return Response({'detail': 'Ungültige E-Mail-Adresse oder Passwort.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh = RefreshToken.for_user(user)
+        jwt_settings = settings.SIMPLE_JWT
+
+        response = Response(
+            {'detail': 'Login successful', 'user': {'id': user.pk, 'username': user.email}},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            max_age=int(jwt_settings['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            max_age=int(jwt_settings['REFRESH_TOKEN_LIFETIME'].total_seconds()),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
+        return response
 
 
 class LogoutView(APIView):
