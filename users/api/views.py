@@ -1,4 +1,6 @@
 from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +10,7 @@ from .serializers import (
     PasswordResetSerializer,
     PasswordResetConfirmSerializer,
 )
+from users.models import CustomUser
 from users.utils import send_activation_email
 
 
@@ -24,7 +27,18 @@ class RegisterView(APIView):
 
 class ActivateView(APIView):
     def get(self, request, uid, token):
-        pass
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = CustomUser.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            return Response({'detail': 'Aktivierung fehlgeschlagen.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Aktivierung fehlgeschlagen.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_active = True
+        user.save()
+        return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
