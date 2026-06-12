@@ -15,7 +15,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 from users.models import CustomUser
-from users.utils import send_activation_email
+from users.utils import send_activation_email, send_password_reset_email
 
 
 class RegisterView(APIView):
@@ -129,7 +129,16 @@ class TokenRefreshCookieView(APIView):
 
 class PasswordResetView(APIView):
     def post(self, request):
-        pass
+        serializer = PasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': 'Ungültige E-Mail-Adresse.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = CustomUser.objects.get(email=serializer.validated_data['email'])
+            token = default_token_generator.make_token(user)
+            send_password_reset_email(user, token)
+        except CustomUser.DoesNotExist:
+            pass
+        return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
