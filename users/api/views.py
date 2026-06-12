@@ -86,7 +86,21 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     def post(self, request):
-        pass
+        raw_refresh = request.COOKIES.get('refresh_token')
+        if not raw_refresh:
+            return Response({'detail': 'Refresh-Token fehlt.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            token = RefreshToken(raw_refresh)
+            token.blacklist()
+        except Exception:
+            return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_400_BAD_REQUEST)
+        response = Response(
+            {'detail': 'Logout successful! All tokens will be deleted. Refresh token is now invalid.'},
+            status=status.HTTP_200_OK,
+        )
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        return response
 
 
 class PasswordResetView(APIView):
