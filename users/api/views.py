@@ -6,6 +6,7 @@ from django.utils.http import urlsafe_base64_decode
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
     RegisterSerializer,
@@ -100,6 +101,29 @@ class LogoutView(APIView):
         )
         response.delete_cookie('access_token')
         response.delete_cookie('refresh_token')
+        return response
+
+
+class TokenRefreshCookieView(APIView):
+    def post(self, request):
+        raw_refresh = request.COOKIES.get('refresh_token')
+        if not raw_refresh:
+            return Response({'detail': 'Refresh-Token fehlt.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            refresh = RefreshToken(raw_refresh)
+            new_access = str(refresh.access_token)
+        except (InvalidToken, TokenError):
+            return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_401_UNAUTHORIZED)
+        jwt_settings = settings.SIMPLE_JWT
+        response = Response({'detail': 'Token refreshed', 'access': new_access}, status=status.HTTP_200_OK)
+        response.set_cookie(
+            key='access_token',
+            value=new_access,
+            max_age=int(jwt_settings['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
         return response
 
 
