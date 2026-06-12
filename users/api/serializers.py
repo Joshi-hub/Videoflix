@@ -31,10 +31,10 @@ class PasswordResetSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
-    confirmed_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        if data['password'] != data['confirmed_password']:
-            raise serializers.ValidationError({'confirmed_password': 'Passwords do not match.'})
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
         return data
