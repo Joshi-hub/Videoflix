@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
@@ -15,7 +14,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 from users.models import CustomUser
-from users.utils import send_activation_email, send_password_reset_email
+from users.utils import send_activation_email, send_password_reset_email, set_jwt_cookies, set_access_cookie
 
 
 class RegisterView(APIView):
@@ -24,9 +23,8 @@ class RegisterView(APIView):
         if not serializer.is_valid():
             return Response({'detail': 'Bitte überprüfe deine Eingaben und versuche es erneut.'}, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
-        token = default_token_generator.make_token(user)
-        send_activation_email(user, token)
-        return Response({'user': {'id': user.pk, 'email': user.email}, 'token': token}, status=status.HTTP_201_CREATED)
+        send_activation_email(user, default_token_generator.make_token(user))
+        return Response({'user': {'id': user.pk, 'email': user.email}}, status=status.HTTP_201_CREATED)
 
 
 class ActivateView(APIView):
@@ -60,28 +58,11 @@ class LoginView(APIView):
             return Response({'detail': 'Ungültige E-Mail-Adresse oder Passwort.'}, status=status.HTTP_400_BAD_REQUEST)
 
         refresh = RefreshToken.for_user(user)
-        jwt_settings = settings.SIMPLE_JWT
-
         response = Response(
             {'detail': 'Login successful', 'user': {'id': user.pk, 'username': user.email}},
             status=status.HTTP_200_OK,
         )
-        response.set_cookie(
-            key='access_token',
-            value=str(refresh.access_token),
-            max_age=int(jwt_settings['ACCESS_TOKEN_LIFETIME'].total_seconds()),
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-        )
-        response.set_cookie(
-            key='refresh_token',
-            value=str(refresh),
-            max_age=int(jwt_settings['REFRESH_TOKEN_LIFETIME'].total_seconds()),
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-        )
+        set_jwt_cookies(response, refresh)
         return response
 
 
@@ -95,10 +76,7 @@ class LogoutView(APIView):
             token.blacklist()
         except Exception:
             return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_400_BAD_REQUEST)
-        response = Response(
-            {'detail': 'Logout successful! All tokens will be deleted. Refresh token is now invalid.'},
-            status=status.HTTP_200_OK,
-        )
+        response = Response({'detail': 'Logout successful.'}, status=status.HTTP_200_OK)
         response.delete_cookie('access_token')
         response.delete_cookie('refresh_token')
         return response
@@ -114,16 +92,8 @@ class TokenRefreshCookieView(APIView):
             new_access = str(refresh.access_token)
         except (InvalidToken, TokenError):
             return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_401_UNAUTHORIZED)
-        jwt_settings = settings.SIMPLE_JWT
         response = Response({'detail': 'Token refreshed', 'access': new_access}, status=status.HTTP_200_OK)
-        response.set_cookie(
-            key='access_token',
-            value=new_access,
-            max_age=int(jwt_settings['ACCESS_TOKEN_LIFETIME'].total_seconds()),
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-        )
+        set_access_cookie(response, new_access)
         return response
 
 
