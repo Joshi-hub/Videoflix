@@ -18,6 +18,8 @@ from users.utils import send_activation_email, send_password_reset_email, set_jw
 
 
 class RegisterView(APIView):
+    """Creates a new inactive user and sends an activation email."""
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
@@ -35,6 +37,8 @@ class RegisterView(APIView):
 
 
 class ActivateView(APIView):
+    """Activates a user account using the token sent via email."""
+
     def get(self, request, uidb64, token):
         try:
             user_id = force_str(urlsafe_base64_decode(uidb64))
@@ -51,6 +55,8 @@ class ActivateView(APIView):
 
 
 class LoginView(APIView):
+    """Authenticates a user and sets JWT tokens as HttpOnly cookies."""
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -74,6 +80,8 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    """Blacklists the refresh token and deletes both JWT cookies."""
+
     def post(self, request):
         raw_refresh = request.COOKIES.get('refresh_token')
         if not raw_refresh:
@@ -93,6 +101,8 @@ class LogoutView(APIView):
 
 
 class TokenRefreshCookieView(APIView):
+    """Issues a new access token using the refresh token cookie."""
+
     def post(self, request):
         raw_refresh = request.COOKIES.get('refresh_token')
         if not raw_refresh:
@@ -108,6 +118,8 @@ class TokenRefreshCookieView(APIView):
 
 
 class PasswordResetView(APIView):
+    """Sends a password reset email if the given address belongs to a registered user."""
+
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         if not serializer.is_valid():
@@ -117,11 +129,14 @@ class PasswordResetView(APIView):
             token = default_token_generator.make_token(user)
             send_password_reset_email(user, token)
         except CustomUser.DoesNotExist:
+            # Silently ignore unknown emails to prevent user enumeration
             pass
         return Response({'detail': 'Es wurde eine E-Mail zum Zurücksetzen Ihres Passworts gesendet.'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
+    """Validates the reset token and saves the new password."""
+
     def post(self, request, uidb64, token):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         if not serializer.is_valid():

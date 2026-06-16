@@ -10,6 +10,7 @@ from .utils import get_hls_output_path
 
 @receiver(post_save, sender=Video)
 def video_post_save(sender, instance, created, **kwargs):
+    """Enqueues HLS conversion jobs for all three resolutions when a video is uploaded."""
     if created:
         queue = django_rq.get_queue('default')
         source = instance.video_file.path
@@ -20,6 +21,7 @@ def video_post_save(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=Video)
 def video_post_delete(sender, instance, **kwargs):
+    """Removes the original file, thumbnail and all HLS output directories on deletion."""
     if instance.video_file and os.path.isfile(instance.video_file.path):
         os.remove(instance.video_file.path)
     if instance.thumbnail and os.path.isfile(instance.thumbnail.path):
