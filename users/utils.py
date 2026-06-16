@@ -2,23 +2,24 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+def _get_activation_link(uid, token):
+    """Returns the activation URL for the current environment (debug vs. production)."""
+    if settings.DEBUG:
+        return f'{settings.BACKEND_URL}/api/activate/{uid}/{token}/'
+    return f'{settings.FRONTEND_URL}/activate/{uid}/{token}/'
 
 
 def send_activation_email(user, token):
-    """Sends an account activation link to the user's email address.
-
-    In development (DEBUG=True) the link points directly to the backend API so
-    the flow can be tested without a running frontend.
-    In production the link points to the frontend, which forwards to the backend.
-    """
+    """Sends an account activation link to the user's email address."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    if settings.DEBUG:
-        activation_link = f'{settings.BACKEND_URL}/api/activate/{uid}/{token}/'
-    else:
-        activation_link = f'{settings.FRONTEND_URL}/activate/{uid}/{token}/'
     send_mail(
         subject='Activate your Videoflix account',
-        message=f'Please activate your account: {activation_link}',
+        message=f'Please activate your account: {_get_activation_link(uid, token)}',
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
         fail_silently=False,
@@ -26,11 +27,7 @@ def send_activation_email(user, token):
 
 
 def send_password_reset_email(user, token):
-    """Sends a password reset link to the user's email address.
-
-    The link always points to the frontend because the reset requires a form
-    for the new password before calling the backend confirm endpoint.
-    """
+    """Sends a password reset link (always points to the frontend form) to the user."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     reset_link = f'{settings.FRONTEND_URL}/password-reset-confirm/{uid}/{token}/'
     send_mail(
@@ -61,3 +58,25 @@ def set_jwt_cookies(response, refresh):
         max_age=int(jwt['REFRESH_TOKEN_LIFETIME'].total_seconds()),
         httponly=True, secure=not settings.DEBUG, samesite='Lax',
     )
+
+
+def build_login_response(user):
+    """Creates the login success response and sets JWT cookies."""
+    refresh = RefreshToken.for_user(user)
+    response = Response(
+        {'detail': 'Login erfolgreich', 'user': {'id': user.pk, 'username': user.email}},
+        status=status.HTTP_200_OK,
+    )
+    set_jwt_cookies(response, refresh)
+    return response
+
+
+def build_logout_response():
+    """Creates the logout response and clears both JWT cookies."""
+    response = Response(
+        {'detail': 'Abmeldung erfolgreich! Alle Tokens werden gelöscht. Das Aktualisierungstoken ist jetzt ungültig.'},
+        status=status.HTTP_200_OK,
+    )
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
+    return response

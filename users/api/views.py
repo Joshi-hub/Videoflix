@@ -14,7 +14,13 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 from users.models import CustomUser
-from users.utils import send_activation_email, send_password_reset_email, set_jwt_cookies, set_access_cookie
+from users.utils import (
+    send_activation_email,
+    send_password_reset_email,
+    set_access_cookie,
+    build_login_response,
+    build_logout_response,
+)
 
 
 class RegisterView(APIView):
@@ -45,10 +51,8 @@ class ActivateView(APIView):
             user = CustomUser.objects.get(pk=user_id)
         except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
             return Response({'detail': 'Aktivierung fehlgeschlagen.'}, status=status.HTTP_400_BAD_REQUEST)
-
         if not default_token_generator.check_token(user, token):
             return Response({'detail': 'Aktivierung fehlgeschlagen.'}, status=status.HTTP_400_BAD_REQUEST)
-
         user.is_active = True
         user.save()
         return Response({'message': 'Konto erfolgreich aktiviert.'}, status=status.HTTP_200_OK)
@@ -61,22 +65,17 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({'detail': 'Ungültige Eingabe.'}, status=status.HTTP_400_BAD_REQUEST)
-
         user = authenticate(
             request,
             username=serializer.validated_data['email'],
             password=serializer.validated_data['password'],
         )
         if user is None:
-            return Response({'detail': 'Ungültige E-Mail-Adresse oder Passwort.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        refresh = RefreshToken.for_user(user)
-        response = Response(
-            {'detail': 'Login erfolgreich', 'user': {'id': user.pk, 'username': user.email}},
-            status=status.HTTP_200_OK,
-        )
-        set_jwt_cookies(response, refresh)
-        return response
+            return Response(
+                {'detail': 'Ungültige E-Mail-Adresse oder Passwort.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return build_login_response(user)
 
 
 class LogoutView(APIView):
@@ -91,13 +90,7 @@ class LogoutView(APIView):
             token.blacklist()
         except Exception:
             return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_400_BAD_REQUEST)
-        response = Response(
-            {'detail': 'Abmeldung erfolgreich! Alle Tokens werden gelöscht. Das Aktualisierungstoken ist jetzt ungültig.'},
-            status=status.HTTP_200_OK,
-        )
-        response.delete_cookie('access_token')
-        response.delete_cookie('refresh_token')
-        return response
+        return build_logout_response()
 
 
 class TokenRefreshCookieView(APIView):
@@ -131,7 +124,10 @@ class PasswordResetView(APIView):
         except CustomUser.DoesNotExist:
             # Silently ignore unknown emails to prevent user enumeration
             pass
-        return Response({'detail': 'Es wurde eine E-Mail zum Zurücksetzen Ihres Passworts gesendet.'}, status=status.HTTP_200_OK)
+        return Response(
+            {'detail': 'Es wurde eine E-Mail zum Zurücksetzen Ihres Passworts gesendet.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 class PasswordResetConfirmView(APIView):
