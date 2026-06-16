@@ -1,6 +1,5 @@
-import os
 from http.cookies import SimpleCookie
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
@@ -186,13 +185,19 @@ class UsersUtilsTest(TestCase):
         self.assertIn('access_token', response.cookies)
         self.assertIn('refresh_token', response.cookies)
 
-    def test_activation_link_uses_frontend_url(self):
-        with patch.dict(os.environ, {'FRONTEND_URL': 'http://myfrontend.com'}):
+    def test_activation_link_uses_backend_url_in_debug(self):
+        with self.settings(DEBUG=True, BACKEND_URL='http://mybackend.com'):
+            send_activation_email(self.user, 'tok')
+        self.assertIn('mybackend.com', mail.outbox[0].body)
+        self.assertIn('/api/activate/', mail.outbox[0].body)
+
+    def test_activation_link_uses_frontend_url_in_production(self):
+        with self.settings(DEBUG=False, FRONTEND_URL='http://myfrontend.com'):
             send_activation_email(self.user, 'tok')
         self.assertIn('myfrontend.com', mail.outbox[0].body)
 
     def test_reset_link_uses_frontend_url(self):
-        with patch.dict(os.environ, {'FRONTEND_URL': 'http://myfrontend.com'}):
+        with self.settings(FRONTEND_URL='http://myfrontend.com'):
             send_password_reset_email(self.user, 'tok')
         self.assertIn('myfrontend.com', mail.outbox[0].body)
 
@@ -265,10 +270,10 @@ class RegisterViewTest(APITestCase):
         self.assertIn('user', r.data)
         self.assertEqual(r.data['user']['email'], 'reg@test.com')
 
-    def test_register_no_token_in_response(self):
+    def test_register_returns_activation_token(self):
         r = self.client.post(self.URL, self.VALID, format='json')
-        self.assertNotIn('token', r.data)
-        self.assertNotIn('access', r.data)
+        self.assertIn('token', r.data)
+        self.assertTrue(r.data['token'])
 
     def test_register_password_mismatch_returns_400(self):
         data = {**self.VALID, 'confirmed_password': 'Wrong123!'}

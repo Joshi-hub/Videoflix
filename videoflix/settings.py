@@ -149,3 +149,4 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@videoflix.com')
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
+BACKEND_URL = os.environ.get('BACKEND_URL', 'http://localhost:8000')

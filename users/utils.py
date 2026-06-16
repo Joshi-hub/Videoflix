@@ -1,4 +1,3 @@
-import os
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes
@@ -6,28 +5,38 @@ from django.utils.http import urlsafe_base64_encode
 
 
 def send_activation_email(user, token):
-    """Sends an account activation link to the user's email address."""
+    """Sends an account activation link to the user's email address.
+
+    In development (DEBUG=True) the link points directly to the backend API so
+    the flow can be tested without a running frontend.
+    In production the link points to the frontend, which forwards to the backend.
+    """
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
-    activation_link = f'{frontend_url}/activate/{uid}/{token}/'
+    if settings.DEBUG:
+        activation_link = f'{settings.BACKEND_URL}/api/activate/{uid}/{token}/'
+    else:
+        activation_link = f'{settings.FRONTEND_URL}/activate/{uid}/{token}/'
     send_mail(
         subject='Activate your Videoflix account',
         message=f'Please activate your account: {activation_link}',
-        from_email=os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@videoflix.com'),
+        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
         fail_silently=False,
     )
 
 
 def send_password_reset_email(user, token):
-    """Sends a password reset link to the user's email address."""
+    """Sends a password reset link to the user's email address.
+
+    The link always points to the frontend because the reset requires a form
+    for the new password before calling the backend confirm endpoint.
+    """
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:4200')
-    reset_link = f'{frontend_url}/password-reset-confirm/{uid}/{token}/'
+    reset_link = f'{settings.FRONTEND_URL}/password-reset-confirm/{uid}/{token}/'
     send_mail(
         subject='Reset your Videoflix password',
         message=f'Reset your password: {reset_link}',
-        from_email=os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@videoflix.com'),
+        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
         fail_silently=False,
     )
