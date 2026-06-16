@@ -21,16 +21,23 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'Bitte überprüfe deine Eingaben und versuche es erneut.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         user = serializer.save()
-        send_activation_email(user, default_token_generator.make_token(user))
-        return Response({'user': {'id': user.pk, 'email': user.email}}, status=status.HTTP_201_CREATED)
+        token = default_token_generator.make_token(user)
+        send_activation_email(user, token)
+        return Response(
+            {'user': {'id': user.pk, 'email': user.email}, 'token': token},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ActivateView(APIView):
-    def get(self, request, uid, token):
+    def get(self, request, uidb64, token):
         try:
-            user_id = force_str(urlsafe_base64_decode(uid))
+            user_id = force_str(urlsafe_base64_decode(uidb64))
             user = CustomUser.objects.get(pk=user_id)
         except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
             return Response({'detail': 'Aktivierung fehlgeschlagen.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -40,7 +47,7 @@ class ActivateView(APIView):
 
         user.is_active = True
         user.save()
-        return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Konto erfolgreich aktiviert.'}, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
@@ -59,7 +66,7 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
         response = Response(
-            {'detail': 'Login successful', 'user': {'id': user.pk, 'username': user.email}},
+            {'detail': 'Login erfolgreich', 'user': {'id': user.pk, 'username': user.email}},
             status=status.HTTP_200_OK,
         )
         set_jwt_cookies(response, refresh)
@@ -76,7 +83,10 @@ class LogoutView(APIView):
             token.blacklist()
         except Exception:
             return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_400_BAD_REQUEST)
-        response = Response({'detail': 'Logout successful.'}, status=status.HTTP_200_OK)
+        response = Response(
+            {'detail': 'Abmeldung erfolgreich! Alle Tokens werden gelöscht. Das Aktualisierungstoken ist jetzt ungültig.'},
+            status=status.HTTP_200_OK,
+        )
         response.delete_cookie('access_token')
         response.delete_cookie('refresh_token')
         return response
@@ -92,7 +102,7 @@ class TokenRefreshCookieView(APIView):
             new_access = str(refresh.access_token)
         except (InvalidToken, TokenError):
             return Response({'detail': 'Ungültiger Refresh-Token.'}, status=status.HTTP_401_UNAUTHORIZED)
-        response = Response({'detail': 'Token refreshed', 'access': new_access}, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Token aktualisiert', 'access': new_access}, status=status.HTTP_200_OK)
         set_access_cookie(response, new_access)
         return response
 
@@ -108,7 +118,7 @@ class PasswordResetView(APIView):
             send_password_reset_email(user, token)
         except CustomUser.DoesNotExist:
             pass
-        return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
+        return Response({'detail': 'Es wurde eine E-Mail zum Zurücksetzen Ihres Passworts gesendet.'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
@@ -125,4 +135,4 @@ class PasswordResetConfirmView(APIView):
             return Response({'detail': 'Ungültiger oder abgelaufener Token.'}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(serializer.validated_data['new_password'])
         user.save()
-        return Response({'detail': 'Your Password has been successfully reset.'}, status=status.HTTP_200_OK)
+        return Response({'detail': 'Ihr Passwort wurde erfolgreich zurückgesetzt.'}, status=status.HTTP_200_OK)
