@@ -12,7 +12,6 @@ done
 echo "PostgreSQL ist bereit - fahre fort..."
 
 python manage.py collectstatic --noinput
-python manage.py makemigrations
 python manage.py migrate
 
 python manage.py shell <<EOF
@@ -31,6 +30,4 @@ else:
     print(f"Superuser '{email}' already exists.")
 EOF
 
-python manage.py rqworker default &
-
-exec gunicorn videoflix.wsgi:application --bind 0.0.0.0:8000 --reload
+exec gunicorn videoflix.wsgi:application --bind 0.0.0.0:8000

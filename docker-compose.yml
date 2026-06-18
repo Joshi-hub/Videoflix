@@ -1,7 +1,7 @@
 services:
 
   db:
-    image: postgres:latest
+    image: postgres:16
     container_name: videoflix_database
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql
 
   redis:
-    image: redis:latest
+    image: redis:7
     container_name: videoflix_redis
     volumes:
       - redis_data:/data
@@ -22,13 +22,28 @@ services:
       dockerfile: backend.Dockerfile
     env_file: .env
     container_name: videoflix_backend
-
     volumes:
       - .:/app
       - videoflix_media:/app/media
       - videoflix_static:/app/static
     ports:
       - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    env_file: .env
+    container_name: videoflix_worker
+    command: python manage.py rqworker default
+    volumes:
+      - .:/app
+      - videoflix_media:/app/media
     environment:
       - PYTHONUNBUFFERED=1
     depends_on:
