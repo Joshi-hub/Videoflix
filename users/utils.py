@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from django.conf import settings
-from django.core.mail import get_connection
+from django.core.mail import get_connection, send_mail
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -16,25 +16,30 @@ _LOGO_PATH = os.path.join(os.path.dirname(__file__), 'templates', 'users', 'emai
 
 
 def _send_with_logo(subject, text_body, html_body, to_email):
-    root = MIMEMultipart('related')
-    root['Subject'] = subject
-    root['From'] = settings.DEFAULT_FROM_EMAIL
-    root['To'] = to_email
-
-    alt = MIMEMultipart('alternative')
-    root.attach(alt)
-    alt.attach(MIMEText(text_body, 'plain'))
-    alt.attach(MIMEText(html_body, 'html'))
-
-    with open(_LOGO_PATH, 'rb') as f:
-        img = MIMEImage(f.read(), 'png')
-    img.add_header('Content-ID', '<videoflix_logo>')
-    img.add_header('Content-Disposition', 'inline', filename='logo.png')
-    root.attach(img)
-
     conn = get_connection()
     conn.open()
-    conn.connection.sendmail(settings.DEFAULT_FROM_EMAIL, [to_email], root.as_string())
+    smtp = getattr(conn, 'connection', None)
+
+    if smtp is not None:
+        root = MIMEMultipart('related')
+        root['Subject'] = subject
+        root['From'] = settings.DEFAULT_FROM_EMAIL
+        root['To'] = to_email
+        alt = MIMEMultipart('alternative')
+        root.attach(alt)
+        alt.attach(MIMEText(text_body, 'plain'))
+        alt.attach(MIMEText(html_body, 'html'))
+        with open(_LOGO_PATH, 'rb') as f:
+            img = MIMEImage(f.read(), 'png')
+        img.add_header('Content-ID', '<videoflix_logo>')
+        img.add_header('Content-Disposition', 'inline', filename='logo.png')
+        root.attach(img)
+        smtp.sendmail(settings.DEFAULT_FROM_EMAIL, [to_email], root.as_string())
+    else:
+        send_mail(subject=subject, message=text_body, from_email=settings.DEFAULT_FROM_EMAIL,
+                  recipient_list=[to_email], html_message=html_body,
+                  connection=conn, fail_silently=False)
+
     conn.close()
 
 

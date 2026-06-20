@@ -158,7 +158,7 @@ class UsersUtilsTest(TestCase):
         send_activation_email(self.user, 'tok')
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('u@test.com', mail.outbox[0].to)
-        self.assertIn('Activate', mail.outbox[0].subject)
+        self.assertIn('Confirm', mail.outbox[0].subject)
 
     def test_send_activation_email_contains_link(self):
         send_activation_email(self.user, 'mytoken')
@@ -185,11 +185,11 @@ class UsersUtilsTest(TestCase):
         self.assertIn('access_token', response.cookies)
         self.assertIn('refresh_token', response.cookies)
 
-    def test_activation_link_uses_backend_url_in_debug(self):
-        with self.settings(DEBUG=True, BACKEND_URL='http://mybackend.com'):
+    def test_activation_link_always_uses_frontend_url(self):
+        with self.settings(DEBUG=True, FRONTEND_URL='http://myfrontend.com'):
             send_activation_email(self.user, 'tok')
-        self.assertIn('mybackend.com', mail.outbox[0].body)
-        self.assertIn('/api/activate/', mail.outbox[0].body)
+        self.assertIn('myfrontend.com', mail.outbox[0].body)
+        self.assertIn('/pages/auth/activate.html', mail.outbox[0].body)
 
     def test_activation_link_uses_frontend_url_in_production(self):
         with self.settings(DEBUG=False, FRONTEND_URL='http://myfrontend.com'):
