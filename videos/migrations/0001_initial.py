@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('video_file', models.FileField(upload_to='videos/originals/')),
                 ('thumbnail', models.ImageField(blank=True, null=True, upload_to='videos/thumbnails/')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('genre', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='videos', to='core.genre')),
+                ('genre', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='videos', to='videos.genre')),
             ],
             options={
                 'ordering': ['-created_at'],

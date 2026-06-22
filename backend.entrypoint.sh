@@ -30,4 +30,4 @@ else:
     print(f"Superuser '{email}' already exists.")
 EOF
 
-exec gunicorn videoflix.wsgi:application --bind 0.0.0.0:8000
+exec gunicorn core.wsgi:application --bind 0.0.0.0:8000

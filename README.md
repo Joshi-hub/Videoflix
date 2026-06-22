@@ -112,5 +112,5 @@ When a `Video` object is saved via the Django admin, Django RQ automatically enq
 ## Running Tests
 
 ```bash
-docker-compose run --rm web python manage.py test --settings=videoflix.test_settings
+docker-compose run --rm web python manage.py test --settings=core.test_settings
 ```

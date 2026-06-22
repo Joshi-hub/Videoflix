@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from rest_framework.views import APIView
-from core.models import Video
-from core.utils import get_hls_output_path
+from videos.models import Video
+from videos.utils import get_hls_output_path
 from .serializers import VideoSerializer
 
 _ALLOWED_RESOLUTIONS = {'480p', '720p', '1080p'}
